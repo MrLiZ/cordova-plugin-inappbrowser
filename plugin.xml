@@ -125,6 +125,14 @@
             </feature>
         </config-file>
 
+        <!-- resource   -->
+        <resource-file src="src/ios/closeButton@2x.png" />
+        <resource-file src="src/ios/closeButton@3x.png" />
+        <resource-file src="src/ios/IABbackward@2x.png" />
+        <resource-file src="src/ios/IABbackward@3x.png" />
+        <resource-file src="src/ios/IABforward@2x.png" />
+        <resource-file src="src/ios/IABforward@3x.png" />
+
         <header-file src="src/ios/CDVInAppBrowser.h" />
 	    <source-file src="src/ios/CDVInAppBrowser.m" />
 	    

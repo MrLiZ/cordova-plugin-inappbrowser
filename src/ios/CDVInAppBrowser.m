@@ -18,6 +18,7 @@
  */
 
 #import "CDVInAppBrowser.h"
+//#import "InAppBrowserCustomView.h"
 #import <Cordova/CDVPluginResult.h>
 #import <Cordova/CDVUserAgentUtil.h>
 
@@ -87,7 +88,7 @@
     NSString* url = [command argumentAtIndex:0];
     NSString* target = [command argumentAtIndex:1 withDefault:kInAppBrowserTargetSelf];
     NSString* options = [command argumentAtIndex:2 withDefault:@"" andClass:[NSString class]];
-
+    NSString* pageTitle = [command argumentAtIndex:3 withDefault:@""];
     self.callbackId = command.callbackId;
 
     if (url != nil) {
@@ -107,7 +108,7 @@
         } else if ([target isEqualToString:kInAppBrowserTargetSystem]) {
             [self openInSystem:absoluteUrl];
         } else { // _blank or anything else
-            [self openInInAppBrowser:absoluteUrl withOptions:options];
+            [self openInInAppBrowser:absoluteUrl withOptions:options andPageTitle:pageTitle];
         }
 
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
@@ -119,7 +120,7 @@
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-- (void)openInInAppBrowser:(NSURL*)url withOptions:(NSString*)options
+- (void)openInInAppBrowser:(NSURL*)url withOptions:(NSString*)options andPageTitle: (NSString *)pageTitle
 {
     CDVInAppBrowserOptions* browserOptions = [CDVInAppBrowserOptions parseOptions:options];
 
@@ -157,13 +158,13 @@
         }
         self.inAppBrowserViewController = [[CDVInAppBrowserViewController alloc] initWithUserAgent:userAgent prevUserAgent:[self.commandDelegate userAgent] browserOptions: browserOptions];
         self.inAppBrowserViewController.navigationDelegate = self;
-
+        self.inAppBrowserViewController.pageTitle = pageTitle;
         if ([self.viewController conformsToProtocol:@protocol(CDVScreenOrientationDelegate)]) {
             self.inAppBrowserViewController.orientationDelegate = (UIViewController <CDVScreenOrientationDelegate>*)self.viewController;
         }
     }
 
-    [self.inAppBrowserViewController showLocationBar:browserOptions.location];
+    [self.inAppBrowserViewController showLocationBar: NO];
     [self.inAppBrowserViewController showToolBar:browserOptions.toolbar :browserOptions.toolbarposition];
     if (browserOptions.closebuttoncaption != nil) {
         [self.inAppBrowserViewController setCloseButtonTitle:browserOptions.closebuttoncaption];
@@ -261,6 +262,105 @@
         [self openInInAppBrowser:url withOptions:options];
     }
 #endif
+}
+
+- (void)openInInAppBrowser:(NSURL*)url withOptions:(NSString*)options
+{
+    CDVInAppBrowserOptions* browserOptions = [CDVInAppBrowserOptions parseOptions:options];
+    
+    if (browserOptions.clearcache) {
+        NSHTTPCookie *cookie;
+        NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        for (cookie in [storage cookies])
+        {
+            if (![cookie.domain isEqual: @".^filecookies^"]) {
+                [storage deleteCookie:cookie];
+            }
+        }
+    }
+    
+    if (browserOptions.clearsessioncache) {
+        NSHTTPCookie *cookie;
+        NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        for (cookie in [storage cookies])
+        {
+            if (![cookie.domain isEqual: @".^filecookies^"] && cookie.isSessionOnly) {
+                [storage deleteCookie:cookie];
+            }
+        }
+    }
+    
+    if (self.inAppBrowserViewController == nil) {
+        NSString* userAgent = [CDVUserAgentUtil originalUserAgent];
+        NSString* overrideUserAgent = [self settingForKey:@"OverrideUserAgent"];
+        NSString* appendUserAgent = [self settingForKey:@"AppendUserAgent"];
+        if(overrideUserAgent){
+            userAgent = overrideUserAgent;
+        }
+        if(appendUserAgent){
+            userAgent = [userAgent stringByAppendingString: appendUserAgent];
+        }
+        self.inAppBrowserViewController = [[CDVInAppBrowserViewController alloc] initWithUserAgent:userAgent prevUserAgent:[self.commandDelegate userAgent] browserOptions: browserOptions];
+        self.inAppBrowserViewController.navigationDelegate = self;
+        
+        if ([self.viewController conformsToProtocol:@protocol(CDVScreenOrientationDelegate)]) {
+            self.inAppBrowserViewController.orientationDelegate = (UIViewController <CDVScreenOrientationDelegate>*)self.viewController;
+        }
+    }
+    
+    [self.inAppBrowserViewController showLocationBar:browserOptions.location];
+    [self.inAppBrowserViewController showToolBar:browserOptions.toolbar :browserOptions.toolbarposition];
+    if (browserOptions.closebuttoncaption != nil) {
+        [self.inAppBrowserViewController setCloseButtonTitle:browserOptions.closebuttoncaption];
+    }
+    // Set Presentation Style
+    UIModalPresentationStyle presentationStyle = UIModalPresentationFullScreen; // default
+    if (browserOptions.presentationstyle != nil) {
+        if ([[browserOptions.presentationstyle lowercaseString] isEqualToString:@"pagesheet"]) {
+            presentationStyle = UIModalPresentationPageSheet;
+        } else if ([[browserOptions.presentationstyle lowercaseString] isEqualToString:@"formsheet"]) {
+            presentationStyle = UIModalPresentationFormSheet;
+        }
+    }
+    self.inAppBrowserViewController.modalPresentationStyle = presentationStyle;
+    
+    // Set Transition Style
+    UIModalTransitionStyle transitionStyle = UIModalTransitionStyleCoverVertical; // default
+    if (browserOptions.transitionstyle != nil) {
+        if ([[browserOptions.transitionstyle lowercaseString] isEqualToString:@"fliphorizontal"]) {
+            transitionStyle = UIModalTransitionStyleFlipHorizontal;
+        } else if ([[browserOptions.transitionstyle lowercaseString] isEqualToString:@"crossdissolve"]) {
+            transitionStyle = UIModalTransitionStyleCrossDissolve;
+        }
+    }
+    self.inAppBrowserViewController.modalTransitionStyle = transitionStyle;
+    
+    // prevent webView from bouncing
+    if (browserOptions.disallowoverscroll) {
+        if ([self.inAppBrowserViewController.webView respondsToSelector:@selector(scrollView)]) {
+            ((UIScrollView*)[self.inAppBrowserViewController.webView scrollView]).bounces = NO;
+        } else {
+            for (id subview in self.inAppBrowserViewController.webView.subviews) {
+                if ([[subview class] isSubclassOfClass:[UIScrollView class]]) {
+                    ((UIScrollView*)subview).bounces = NO;
+                }
+            }
+        }
+    }
+    
+    // UIWebView options
+    self.inAppBrowserViewController.webView.scalesPageToFit = browserOptions.enableviewportscale;
+    self.inAppBrowserViewController.webView.mediaPlaybackRequiresUserAction = browserOptions.mediaplaybackrequiresuseraction;
+    self.inAppBrowserViewController.webView.allowsInlineMediaPlayback = browserOptions.allowinlinemediaplayback;
+    if (IsAtLeastiOSVersion(@"6.0")) {
+        self.inAppBrowserViewController.webView.keyboardDisplayRequiresUserAction = browserOptions.keyboarddisplayrequiresuseraction;
+        self.inAppBrowserViewController.webView.suppressesIncrementalRendering = browserOptions.suppressesincrementalrendering;
+    }
+    
+    [self.inAppBrowserViewController navigateTo:url];
+    if (!browserOptions.hidden) {
+        [self show:nil];
+    }
 }
 
 - (void)openInSystem:(NSURL*)url
@@ -506,11 +606,17 @@
 #else
         _webViewDelegate = [[CDVWebViewDelegate alloc] initWithDelegate:self];
 #endif
-        
+        self.view.backgroundColor = [UIColor whiteColor];
         [self createViews];
     }
 
     return self;
+}
+
+
+-(void)setPageTitle:(NSString *)pageTitle {
+    _pageTitle = pageTitle;
+    self.titleLabel.text = pageTitle;
 }
 
 // Prevent crashes on closing windows
@@ -557,10 +663,18 @@
     self.spinner.opaque = NO;
     self.spinner.userInteractionEnabled = NO;
     [self.spinner stopAnimating];
+    
+    
+    self.closeButton = [[UIBarButtonItem alloc] initWithCustomView:[self getCustomButtonWithTitle:@"返回"]];
 
-    self.closeButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:self action:@selector(close)];
+//    self.closeButton = [[UIBarButtonItem alloc] initWithTitle:@"返回" style:UIBarButtonItemStylePlain target:self action:@selector(close)];
     self.closeButton.enabled = YES;
-
+//    self.closeButton.image = [UIImage imageNamed:@"closeButton"];
+//    [self.closeButton setImageInsets:UIEdgeInsetsMake(0, -60, 0, 0)];
+//    self.closeButton.title = @"返回";
+//
+//    self.closeButton = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"closeButton"] style:UIBarButtonItemStylePlain target:self action:@selector(close)];
+//    self.closeButton.enabled = YES;
     UIBarButtonItem* flexibleSpaceButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
 
     UIBarButtonItem* fixedSpaceButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
@@ -573,14 +687,15 @@
     self.toolbar.alpha = 1.000;
     self.toolbar.autoresizesSubviews = YES;
     self.toolbar.autoresizingMask = toolbarIsAtBottom ? (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin) : UIViewAutoresizingFlexibleWidth;
-    self.toolbar.barStyle = UIBarStyleBlackOpaque;
+    self.toolbar.barStyle = UIBarStyleDefault;
     self.toolbar.clearsContextBeforeDrawing = NO;
-    self.toolbar.clipsToBounds = NO;
+    self.toolbar.clipsToBounds = YES;
     self.toolbar.contentMode = UIViewContentModeScaleToFill;
     self.toolbar.hidden = NO;
     self.toolbar.multipleTouchEnabled = NO;
     self.toolbar.opaque = NO;
     self.toolbar.userInteractionEnabled = YES;
+    self.toolbar.barTintColor = [UIColor whiteColor];
 
     CGFloat labelInset = 5.0;
     float locationBarY = toolbarIsAtBottom ? self.view.bounds.size.height - FOOTER_HEIGHT : self.view.bounds.size.height - LOCATIONBAR_HEIGHT;
@@ -614,19 +729,22 @@
     self.addressLabel.textColor = [UIColor colorWithWhite:1.000 alpha:1.000];
     self.addressLabel.userInteractionEnabled = NO;
 
-    NSString* frontArrowString = NSLocalizedString(@"►", nil); // create arrow from Unicode char
-    self.forwardButton = [[UIBarButtonItem alloc] initWithTitle:frontArrowString style:UIBarButtonItemStylePlain target:self action:@selector(goForward:)];
+    
+    self.forwardButton = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"IABforward"] style:UIBarButtonItemStylePlain target:self action:@selector(goForward:)];
     self.forwardButton.enabled = YES;
     self.forwardButton.imageInsets = UIEdgeInsetsZero;
-
-    NSString* backArrowString = NSLocalizedString(@"◄", nil); // create arrow from Unicode char
-    self.backButton = [[UIBarButtonItem alloc] initWithTitle:backArrowString style:UIBarButtonItemStylePlain target:self action:@selector(goBack:)];
-    self.backButton.enabled = YES;
-    self.backButton.imageInsets = UIEdgeInsetsZero;
-
+    
+    self.backButton = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"IABbackward"] style:UIBarButtonItemStylePlain target:self action:@selector(goBack:)];
+    self.forwardButton.enabled = YES;
+    self.forwardButton.imageInsets = UIEdgeInsetsZero;
+    
+    self.titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(self.view.frame.size.width * (0.5 - 0.225), 0, self.view.frame.size.width *0.45, TOOLBAR_HEIGHT)];
+    self.titleLabel.textAlignment = NSTextAlignmentCenter;
+    
     [self.toolbar setItems:@[self.closeButton, flexibleSpaceButton, self.backButton, fixedSpaceButton, self.forwardButton]];
-
-    self.view.backgroundColor = [UIColor grayColor];
+    [self.toolbar addSubview:self.titleLabel];
+    
+    self.view.backgroundColor = [UIColor whiteColor];
     [self.view addSubview:self.toolbar];
     [self.view addSubview:self.addressLabel];
     [self.view addSubview:self.spinner];
@@ -637,15 +755,36 @@
     [self.webView setFrame:frame];
 }
 
+-(UIButton *)getCustomButtonWithTitle: (NSString *)title {
+    UIButton *button =  [UIButton buttonWithType:UIButtonTypeCustom];
+    [button setImage:[UIImage imageNamed:@"closeButton"] forState:UIControlStateNormal];
+    [button setImage:[UIImage imageNamed:@"closeButton"] forState:UIControlStateHighlighted];
+    [button setImageEdgeInsets: UIEdgeInsetsMake(0, -45, 0, 0)];
+    [button setFrame:CGRectMake(0, 0, 53, 31)];
+    [button addTarget:self action:@selector(close)forControlEvents:UIControlEventTouchUpInside];
+    UILabel *label = [[UILabel alloc]initWithFrame:CGRectMake(3, 5, 50, 20)];
+    [label setFont:[UIFont fontWithName:@"Arial-BoldMT" size:16]];
+    [label setText: title];
+    label.textAlignment = NSTextAlignmentCenter;
+    label.textColor = [UIColor colorWithRed:0.10 green:0.60 blue:0.87 alpha:1.00];
+    [label setBackgroundColor:[UIColor clearColor]];
+    [button addSubview:label];
+    
+    return button;
+}
+
 - (void)setCloseButtonTitle:(NSString*)title
 {
+    if (title.length > 3) {
+        title = @"返回";
+    }
     // the advantage of using UIBarButtonSystemItemDone is the system will localize it for you automatically
     // but, if you want to set this yourself, knock yourself out (we can't set the title for a system Done button, so we have to create a new one)
     self.closeButton = nil;
-    self.closeButton = [[UIBarButtonItem alloc] initWithTitle:title style:UIBarButtonItemStyleBordered target:self action:@selector(close)];
+    self.closeButton = [[UIBarButtonItem alloc] initWithCustomView:[self getCustomButtonWithTitle:title]];
+//    self.closeButton = [[UIBarButtonItem alloc] initWithTitle:title style:UIBarButtonItemStylePlain target:self action:@selector(close)];
     self.closeButton.enabled = YES;
     self.closeButton.tintColor = [UIColor colorWithRed:60.0 / 255.0 green:136.0 / 255.0 blue:230.0 / 255.0 alpha:1];
-
     NSMutableArray* items = [self.toolbar.items mutableCopy];
     [items replaceObjectAtIndex:0 withObject:self.closeButton];
     [self.toolbar setItems:items];
@@ -761,21 +900,6 @@
             [self setWebViewFrame:self.view.bounds];
         }
     }
-}
-
-- (void)viewDidLoad
-{
-    CGRect frame = [UIApplication sharedApplication].statusBarFrame;
-    UIToolbar* bgToolbar = [[UIToolbar alloc] initWithFrame:frame];
-    bgToolbar.barStyle = UIBarStyleDefault;
-    bgToolbar.tintColor = [UIColor whiteColor];
-    bgToolbar.barTintColor = [UIColor whiteColor];
-//    [[UIBarItem appearance] setTitleTextAttributes:@{UITextAttributeTextColor : [UIColor whiteColor]}];
-
-
-    [self.view addSubview:bgToolbar];
-    
-    [super viewDidLoad];
 }
 
 - (void)viewDidUnload
@@ -976,7 +1100,7 @@
         self.location = YES;
         self.toolbar = YES;
         self.closebuttoncaption = nil;
-        self.toolbarposition = kInAppBrowserToolbarBarPositionBottom;
+        self.toolbarposition = kInAppBrowserToolbarBarPositionTop;
         self.clearcache = NO;
         self.clearsessioncache = NO;
 
@@ -1037,20 +1161,6 @@
     if ( self.presentedViewController) {
         [super dismissViewControllerAnimated:flag completion:completion];
     }
-}
-
-- (void) viewDidLoad {
-
-    CGRect frame = [UIApplication sharedApplication].statusBarFrame;
-
-    // simplified from: http://stackoverflow.com/a/25669695/219684
-
-    UIToolbar* bgToolbar = [[UIToolbar alloc] initWithFrame:[self invertFrameIfNeeded:frame]];
-    bgToolbar.barStyle = UIBarStyleDefault;
-    [bgToolbar setAutoresizingMask:UIViewAutoresizingFlexibleWidth];
-    [self.view addSubview:bgToolbar];
-
-    [super viewDidLoad];
 }
 
 - (CGRect) invertFrameIfNeeded:(CGRect)rect {
