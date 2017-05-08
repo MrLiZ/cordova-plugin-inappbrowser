@@ -67,6 +67,11 @@
 
 @end
 
+@interface CustomButton: UIButton
+@property (nonatomic, strong) UIImageView *iconImageView;
+@property (nonatomic, strong) UILabel *textLabel;
+@end
+
 @interface CDVInAppBrowserViewController : UIViewController <UIWebViewDelegate, CDVScreenOrientationDelegate>{
     @private
     NSString* _userAgent;

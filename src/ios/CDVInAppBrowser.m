@@ -123,7 +123,8 @@
 - (void)openInInAppBrowser:(NSURL*)url withOptions:(NSString*)options andPageTitle: (NSString *)pageTitle
 {
     CDVInAppBrowserOptions* browserOptions = [CDVInAppBrowserOptions parseOptions:options];
-
+    NSLog(@"options:%@", options);
+    NSLog(@"browserOptions: %@", browserOptions.closebuttoncaption);
     if (browserOptions.clearcache) {
         NSHTTPCookie *cookie;
         NSHTTPCookieStorage *storage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
@@ -354,7 +355,7 @@
     self.inAppBrowserViewController.webView.allowsInlineMediaPlayback = browserOptions.allowinlinemediaplayback;
     if (IsAtLeastiOSVersion(@"6.0")) {
         self.inAppBrowserViewController.webView.keyboardDisplayRequiresUserAction = browserOptions.keyboarddisplayrequiresuseraction;
-        self.inAppBrowserViewController.webView.suppressesIncrementalRendering = browserOptions.suppressesincrementalrendering;
+        self.inAppBrowserViewController.webView. suppressesIncrementalRendering = browserOptions.suppressesincrementalrendering;
     }
     
     [self.inAppBrowserViewController navigateTo:url];
@@ -588,6 +589,29 @@
 
 @end
 
+@implementation CustomButton
+-(instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        [self constructSubviews];
+    }
+    
+    return self;
+}
+
+-(void)constructSubviews {
+    _iconImageView = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, 24, 25)];
+    [self addSubview:_iconImageView];
+    _textLabel = [[UILabel alloc]initWithFrame:CGRectMake(22, 2.5, self.frame.size.width - 15, 20)];
+    [_textLabel setFont:[UIFont fontWithName:@"Arial-BoldMT" size:16]];
+    _textLabel.textAlignment = NSTextAlignmentLeft;
+    _textLabel.textColor = [UIColor colorWithRed:0.10 green:0.60 blue:0.87 alpha:1.00];
+    [_textLabel setBackgroundColor:[UIColor clearColor]];
+    [self addSubview:_textLabel];
+    
+}
+@end
+
 #pragma mark CDVInAppBrowserViewController
 
 @implementation CDVInAppBrowserViewController
@@ -664,9 +688,9 @@
     self.spinner.userInteractionEnabled = NO;
     [self.spinner stopAnimating];
     
+    UIImage *image = [UIImage imageNamed:@"closeButton"];
+    self.closeButton = [[UIBarButtonItem alloc] initWithCustomView:[self getCustomButtonWithTitle:@"返回" andImage:image]];
     
-    self.closeButton = [[UIBarButtonItem alloc] initWithCustomView:[self getCustomButtonWithTitle:@"返回"]];
-
 //    self.closeButton = [[UIBarButtonItem alloc] initWithTitle:@"返回" style:UIBarButtonItemStylePlain target:self action:@selector(close)];
     self.closeButton.enabled = YES;
 //    self.closeButton.image = [UIImage imageNamed:@"closeButton"];
@@ -681,12 +705,12 @@
     fixedSpaceButton.width = 20;
 
     float toolbarY = toolbarIsAtBottom ? self.view.bounds.size.height - TOOLBAR_HEIGHT : 0.0;
-    CGRect toolbarFrame = CGRectMake(0.0, toolbarY, self.view.bounds.size.width, TOOLBAR_HEIGHT);
+    CGRect toolbarFrame = CGRectMake(-10, toolbarY, self.view.bounds.size.width + 13, TOOLBAR_HEIGHT);
 
     self.toolbar = [[UIToolbar alloc] initWithFrame:toolbarFrame];
     self.toolbar.alpha = 1.000;
     self.toolbar.autoresizesSubviews = YES;
-    self.toolbar.autoresizingMask = toolbarIsAtBottom ? (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin) : UIViewAutoresizingFlexibleWidth;
+    self.toolbar.autoresizingMask = toolbarIsAtBottom ? (UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleTopMargin) : UIViewAutoresizingFlexibleWidth;
     self.toolbar.barStyle = UIBarStyleDefault;
     self.toolbar.clearsContextBeforeDrawing = NO;
     self.toolbar.clipsToBounds = YES;
@@ -696,6 +720,7 @@
     self.toolbar.opaque = NO;
     self.toolbar.userInteractionEnabled = YES;
     self.toolbar.barTintColor = [UIColor whiteColor];
+    
 
     CGFloat labelInset = 5.0;
     float locationBarY = toolbarIsAtBottom ? self.view.bounds.size.height - FOOTER_HEIGHT : self.view.bounds.size.height - LOCATIONBAR_HEIGHT;
@@ -738,7 +763,7 @@
     self.forwardButton.enabled = YES;
     self.forwardButton.imageInsets = UIEdgeInsetsZero;
     
-    self.titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(self.view.frame.size.width * (0.5 - 0.225), 0, self.view.frame.size.width *0.45, TOOLBAR_HEIGHT)];
+    self.titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(self.view.frame.size.width * (0.5 - 0.225) + 13, 0, self.view.frame.size.width *0.45, TOOLBAR_HEIGHT)];
     self.titleLabel.textAlignment = NSTextAlignmentCenter;
     
     [self.toolbar setItems:@[self.closeButton, flexibleSpaceButton, self.backButton, fixedSpaceButton, self.forwardButton]];
@@ -755,39 +780,55 @@
     [self.webView setFrame:frame];
 }
 
--(UIButton *)getCustomButtonWithTitle: (NSString *)title {
-    UIButton *button =  [UIButton buttonWithType:UIButtonTypeCustom];
-    [button setImage:[UIImage imageNamed:@"closeButton"] forState:UIControlStateNormal];
-    [button setImage:[UIImage imageNamed:@"closeButton"] forState:UIControlStateHighlighted];
-    [button setImageEdgeInsets: UIEdgeInsetsMake(0, -45, 0, 0)];
-    [button setFrame:CGRectMake(0, 0, 53, 31)];
-    [button addTarget:self action:@selector(close)forControlEvents:UIControlEventTouchUpInside];
-    UILabel *label = [[UILabel alloc]initWithFrame:CGRectMake(3, 5, 50, 20)];
-    [label setFont:[UIFont fontWithName:@"Arial-BoldMT" size:16]];
-    [label setText: title];
-    label.textAlignment = NSTextAlignmentCenter;
-    label.textColor = [UIColor colorWithRed:0.10 green:0.60 blue:0.87 alpha:1.00];
-    [label setBackgroundColor:[UIColor clearColor]];
-    [button addSubview:label];
+-(UIButton *)getCustomButtonWithTitle: (NSString *)title andImage: (UIImage *)image {
     
+    CustomButton *button = [[CustomButton alloc] initWithFrame:CGRectMake(0, 0, 70, 25)];
+    button.textLabel.text = title;
+    button.iconImageView.image = image;
+    [button addTarget:self action:@selector(close)forControlEvents:UIControlEventTouchUpInside];
+
     return button;
 }
 
-- (void)setCloseButtonTitle:(NSString*)title
-{
-    if (title.length > 3) {
+- (void)setCloseButtonTitle:(NSString*)title {
+    int cnLength = 0;
+    int otherLength = 0;
+    
+    for(int i=0; i< [title length];i++) {
+        int a = [title characterAtIndex:i];
+        if( a > 0x4e00 && a < 0x9fff) {
+            cnLength += 1;
+        } else {
+            otherLength += 1;
+        }
+    }
+    
+    if (cnLength > 3 && otherLength == 0) {
         title = @"返回";
+    }
+    
+    if (otherLength > 4 && cnLength == 0) {
+        title = @"Back";
     }
     // the advantage of using UIBarButtonSystemItemDone is the system will localize it for you automatically
     // but, if you want to set this yourself, knock yourself out (we can't set the title for a system Done button, so we have to create a new one)
     self.closeButton = nil;
-    self.closeButton = [[UIBarButtonItem alloc] initWithCustomView:[self getCustomButtonWithTitle:title]];
+    UIImage *image = [UIImage imageNamed:@"closeButton"];
+    self.closeButton = [[UIBarButtonItem alloc] initWithCustomView:[self getCustomButtonWithTitle:title andImage:image]];
 //    self.closeButton = [[UIBarButtonItem alloc] initWithTitle:title style:UIBarButtonItemStylePlain target:self action:@selector(close)];
     self.closeButton.enabled = YES;
     self.closeButton.tintColor = [UIColor colorWithRed:60.0 / 255.0 green:136.0 / 255.0 blue:230.0 / 255.0 alpha:1];
     NSMutableArray* items = [self.toolbar.items mutableCopy];
     [items replaceObjectAtIndex:0 withObject:self.closeButton];
     [self.toolbar setItems:items];
+}
+
++ (BOOL)isChinese:(unichar)src
+{
+    if(src > 0x4e00 && src < 0x9fff){
+        return YES;
+    }
+    return NO;
 }
 
 - (void)showLocationBar:(BOOL)show
@@ -1131,19 +1172,25 @@
             NSString* key = [[keyvalue objectAtIndex:0] lowercaseString];
             NSString* value = [keyvalue objectAtIndex:1];
             NSString* value_lc = [value lowercaseString];
-
             BOOL isBoolean = [value_lc isEqualToString:@"yes"] || [value_lc isEqualToString:@"no"];
             NSNumberFormatter* numberFormatter = [[NSNumberFormatter alloc] init];
             [numberFormatter setAllowsFloats:YES];
             BOOL isNumber = [numberFormatter numberFromString:value_lc] != nil;
-
+            if ([obj respondsToSelector:NSSelectorFromString(@"closebuttoncaption")]) {
+                NSLog(@"no problem.");
+            }
+            
+            NSLog(@"list key: %@, %@\n", key, value);
+            
             // set the property according to the key name
             if ([obj respondsToSelector:NSSelectorFromString(key)]) {
+                NSLog(@"key is:%@", key);
                 if (isNumber) {
                     [obj setValue:[numberFormatter numberFromString:value_lc] forKey:key];
                 } else if (isBoolean) {
                     [obj setValue:[NSNumber numberWithBool:[value_lc isEqualToString:@"yes"]] forKey:key];
                 } else {
+                    NSLog(@"called");
                     [obj setValue:value forKey:key];
                 }
             }
