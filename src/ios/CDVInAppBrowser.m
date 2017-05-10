@@ -850,7 +850,6 @@
             // put locationBar on top of the toolBar
 
             CGRect webViewBounds = self.view.bounds;
-            webViewBounds.size.height -= FOOTER_HEIGHT;
             [self setWebViewFrame:webViewBounds];
 
             locationbarFrame.origin.y = webViewBounds.size.height;
@@ -859,7 +858,6 @@
             // no toolBar, so put locationBar at the bottom
 
             CGRect webViewBounds = self.view.bounds;
-            webViewBounds.size.height -= LOCATIONBAR_HEIGHT;
             [self setWebViewFrame:webViewBounds];
 
             locationbarFrame.origin.y = webViewBounds.size.height;
@@ -873,7 +871,6 @@
 
             // webView take up whole height less toolBar height
             CGRect webViewBounds = self.view.bounds;
-            webViewBounds.size.height -= TOOLBAR_HEIGHT;
             [self setWebViewFrame:webViewBounds];
         } else {
             // no toolBar, expand webView to screen dimensions
@@ -930,7 +927,6 @@
 
             // webView take up whole height less locationBar height
             CGRect webViewBounds = self.view.bounds;
-            webViewBounds.size.height -= LOCATIONBAR_HEIGHT;
             [self setWebViewFrame:webViewBounds];
 
             // move locationBar down
@@ -938,6 +934,7 @@
             self.addressLabel.frame = locationbarFrame;
         } else {
             // no locationBar, expand webView to screen dimensions
+            self.view.backgroundColor = [UIColor orangeColor];
             [self setWebViewFrame:self.view.bounds];
         }
     }
@@ -1028,7 +1025,7 @@
 }
 
 - (void) rePositionViews {
-    if ([_browserOptions.toolbarposition isEqualToString:kInAppBrowserToolbarBarPositionTop]) {
+    if (_browserOptions.toolbar) {
         [self.webView setFrame:CGRectMake(self.webView.frame.origin.x, TOOLBAR_HEIGHT, self.webView.frame.size.width, self.webView.frame.size.height)];
         [self.toolbar setFrame:CGRectMake(self.toolbar.frame.origin.x, [self getStatusBarOffset], self.toolbar.frame.size.width, self.toolbar.frame.size.height)];
     }
