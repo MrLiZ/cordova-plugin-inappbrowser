@@ -654,9 +654,9 @@
 
     CGRect webViewBounds = self.view.bounds;
     BOOL toolbarIsAtBottom = ![_browserOptions.toolbarposition isEqualToString:kInAppBrowserToolbarBarPositionTop];
-    webViewBounds.size.height -= _browserOptions.location ? FOOTER_HEIGHT : TOOLBAR_HEIGHT;
+//    webViewBounds.size.height -= 10;
+    webViewBounds.origin.y += 10;
     self.webView = [[UIWebView alloc] initWithFrame:webViewBounds];
-
     self.webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
 
     [self.view addSubview:self.webView];
@@ -934,7 +934,6 @@
             self.addressLabel.frame = locationbarFrame;
         } else {
             // no locationBar, expand webView to screen dimensions
-            self.view.backgroundColor = [UIColor orangeColor];
             [self setWebViewFrame:self.view.bounds];
         }
     }
@@ -1025,9 +1024,13 @@
 }
 
 - (void) rePositionViews {
+    [self.webView.scrollView setContentInset:UIEdgeInsetsZero];
+    
     if (_browserOptions.toolbar) {
-        [self.webView setFrame:CGRectMake(self.webView.frame.origin.x, TOOLBAR_HEIGHT, self.webView.frame.size.width, self.webView.frame.size.height)];
+        [self.webView setFrame:CGRectMake(self.webView.frame.origin.x, FOOTER_HEIGHT, self.webView.frame.size.width, self.webView.frame.size.height - FOOTER_HEIGHT)];
         [self.toolbar setFrame:CGRectMake(self.toolbar.frame.origin.x, [self getStatusBarOffset], self.toolbar.frame.size.width, self.toolbar.frame.size.height)];
+    } else {
+        [self.webView setFrame:CGRectMake(self.webView.frame.origin.x, 21, self.webView.frame.size.width, self.webView.frame.size.height - 21)];
     }
 }
 
@@ -1173,21 +1176,14 @@
             NSNumberFormatter* numberFormatter = [[NSNumberFormatter alloc] init];
             [numberFormatter setAllowsFloats:YES];
             BOOL isNumber = [numberFormatter numberFromString:value_lc] != nil;
-            if ([obj respondsToSelector:NSSelectorFromString(@"closebuttoncaption")]) {
-                NSLog(@"no problem.");
-            }
-            
-            NSLog(@"list key: %@, %@\n", key, value);
             
             // set the property according to the key name
             if ([obj respondsToSelector:NSSelectorFromString(key)]) {
-                NSLog(@"key is:%@", key);
                 if (isNumber) {
                     [obj setValue:[numberFormatter numberFromString:value_lc] forKey:key];
                 } else if (isBoolean) {
                     [obj setValue:[NSNumber numberWithBool:[value_lc isEqualToString:@"yes"]] forKey:key];
                 } else {
-                    NSLog(@"called");
                     [obj setValue:value forKey:key];
                 }
             }
