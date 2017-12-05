@@ -655,7 +655,7 @@
     CGRect webViewBounds = self.view.bounds;
     BOOL toolbarIsAtBottom = ![_browserOptions.toolbarposition isEqualToString:kInAppBrowserToolbarBarPositionTop];
 //    webViewBounds.size.height -= 10;
-    webViewBounds.origin.y += 30;
+    webViewBounds.origin.y += 10;
     self.webView = [[UIWebView alloc] initWithFrame:webViewBounds];
     self.webView.autoresizingMask = (UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight);
 
